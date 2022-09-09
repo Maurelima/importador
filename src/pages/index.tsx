@@ -7,8 +7,15 @@ import { ColumnsProps, ncm } from '../utils/index'
 import FileSaver from 'file-saver';
 
 interface WhereProps {
-  campo: string;
-  valuePosition: string;
+  whereCampo: {
+    id: number;
+    descricao: string;
+    type: string;
+  };
+  whereColumn: {
+    id: number;
+    descricao: string;
+  };
 }
 
 const Home: NextPage = () => {
@@ -106,9 +113,6 @@ const Home: NextPage = () => {
   function handleGerarSql(e: any) {
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
-    // console.log(data)
-    // console.log({ keys: Object.keys(data).join() });
-    // console.log({ values: Object.values(data).join() });
     /**
      * indiceCampoColuna informa qual campo receberá o valor de cada coluna do arquivo
      * além de qual tipo de dado e dado padrão cada campo receberá.
@@ -118,11 +122,24 @@ const Home: NextPage = () => {
       return JSON.parse(value)
     })
     const script = [];
+    console.log({ data })
+    console.log({ dadosDoArquivo })
     console.log({ indiceCampoColuna })
+    console.log({ where })
+    // return
+
+    // Verifica se é update
+    // if (toggleInsertOrUpdate) {
+    //   let whereClause = ' where';
+    //   for (let i = 0; i < where.length; i++) {
+    //     // whereClause += ` ${where[i].whereCampo.descricao} = '${}'`;
+    //   }
+    // }    
+
     // roda todas as linhas
     for (let i = 0; i < dadosDoArquivo.length; i++) {
       const values = [];
-      // roda todas as 5 opções da linha
+      // roda todas as opções da linha
       for (let l = 0; l < indiceCampoColuna.length; l++) {
         if (dadosDoArquivo[i][indiceCampoColuna[l].index]) {
           if (indiceCampoColuna[l].type === 'string') {
@@ -140,7 +157,24 @@ const Home: NextPage = () => {
           }
         }
       }
-      script.push(`insert into ncm (${Object.keys(data).join()}) values (${values});\r\n`)
+      if (toggleInsertOrUpdate) {
+        const whereClause = [];
+        for (let k = 0; k < where.length; k++) {
+          if (dadosDoArquivo[i][where[k].whereColumn.id]) {
+            whereClause.push(` ${where[k].whereCampo.descricao} = ${dadosDoArquivo[i][where[k].whereColumn.id]}`)
+          }
+          if (dadosDoArquivo[i][where[k].whereColumn.id] === '') {
+            const defaultValue = indiceCampoColuna.find((indice: any) => indice.index === where[k].whereColumn.id);
+            if (defaultValue) {
+              whereClause.push(` ${where[k].whereCampo.descricao} = ${defaultValue.default}`)
+            }
+          }
+        }
+        // console.log(`${whereClause.join(' and')}`)
+        script.push(`insert into ncm (${Object.keys(data).join()}) values (${values}) WHERE ${whereClause.join(' and')};\r\n`)
+      } else {
+        script.push(`insert into ncm (${Object.keys(data).join()}) values (${values});\r\n`)
+      }
       // console.log(`insert into ncm (${Object.keys(data).join()}) values (${values});`)
     }
     // const blob = new Blob(script,
@@ -157,15 +191,25 @@ const Home: NextPage = () => {
   }, [dadosDoArquivo])
 
   const handleNewWhereClause = useCallback((e: any) => {
-    if (selectedCampoWhere === '' || selectedColunaWhere === '') {
-      alert('Selecione um valor');
-      return;
-    }
+    const formData = new FormData(e.target);
+    const data: any = Object.fromEntries(formData.entries());
+    console.log(data)
+
+    const campo = JSON.parse(data.whereCampo);
+    const coluna = JSON.parse(data.whereColumn);
+
     setWhere([...where, {
-      campo: selectedCampoWhere,
-      valuePosition: selectedColunaWhere,
+      whereCampo: {
+        id: campo.index,
+        descricao: campo.des_campo,
+        type: campo.type,
+      },
+      whereColumn: {
+        id: coluna.index,
+        descricao: coluna.des_column,
+      },
     }])
-  }, [selectedCampoWhere, selectedColunaWhere, where])
+  }, [where])
 
   useEffect(() => {
     if (where)
@@ -302,7 +346,7 @@ const Home: NextPage = () => {
                 }))}
               </div>
             </div>
-            <form onSubmit={(e) => {
+            <form id="primaryForm" onSubmit={(e) => {
               e.preventDefault();
               handleGerarSql(e);
             }}>
@@ -348,9 +392,14 @@ const Home: NextPage = () => {
                       )
                     })}
               </div>
-              {/* 
+            </form>
+            {/* 
                 Seleção de campos para Where em caso de update
               */}
+            <form id="secondaryForm" onSubmit={(e) => {
+              e.preventDefault();
+              handleNewWhereClause(e);
+            }}>
               {toggleInsertOrUpdate && (
                 <div className="col-12 mt-4" style={{ padding: '0px 5px' }}>
                   <h5>Where</h5>
@@ -363,24 +412,21 @@ const Home: NextPage = () => {
                           </Card.Subtitle>
                           <Card.Text>
                             <select
-                              name="where-campos"
+                              name="whereCampo"
                               className="form-select"
                               aria-label="Default select example"
-                              onChange={(e) => {
-                                console.log(e.target.value)
-                                SetSelectedCampoWhere(e.target.value);
-                              }}
-                              defaultValue="1"
+                              required
                             >
                               {selectedTable && selectedTable.map((table) => {
                                 return (
                                   <option
                                     key={table.id}
-                                    value={table.id}>
+                                    value={`{ "index": ${table.id}, "des_campo": "${table.des_campo}", "type": "${table.type}" }`}>
                                     {table.des_campo}
                                   </option>)
                               })}
                             </select>
+                            <div className="invalid-feedback">Example invalid select feedback</div>
                           </Card.Text>
                         </Card.Body>
                       </Card>
@@ -393,26 +439,25 @@ const Home: NextPage = () => {
                           </Card.Subtitle>
                           <Card.Text>
                             <select
-                              name="where-campos"
+                              name="whereColumn"
                               className="form-select"
                               aria-label="Default select example"
-                              onChange={(e) => setSelectedColunaWhere(e.target.value)}
-                              defaultValue="0"
                             >
                               {dadosDoArquivo && dadosDoArquivo[0].map((_item: any, index: any) => {
                                 return (
                                   <option
                                     key={index}
-                                    value={index}>
+                                    value={`{ "index": ${index}, "des_column": "Index[${index}]" }`}>
                                     {`Index [${index}]`}
                                   </option>)
                               })}
                             </select>
                             <Button
-                              type="button"
+                              type="submit"
                               variant="primary"
                               className="btn-gerar-campos"
-                              onClick={(e) => handleNewWhereClause(e)}
+                              form="secondaryForm"
+                              // onClick={(e) => handleNewWhereClause(e)}
                               style={{
                                 position: 'absolute',
                                 right: '15px',
@@ -429,19 +474,45 @@ const Home: NextPage = () => {
                       </Card>
                     </div>
                   </div>
+                  <div className="row list-where">
+                    <div className="col-12 px-4">
+                      <table className="table table-striped table-style">
+                        <thead>
+                          <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Campo</th>
+                            <th scope="col">Coluna</th>
+                            <th scope="col" style={{ textAlign: 'center' }}>Remover</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {where && where.map((onde, index) => {
+                            return (
+                              <tr key={index}>
+                                <th>{index}</th>
+                                <td>{onde.whereCampo.descricao}</td>
+                                <td>{onde.whereColumn.descricao}</td>
+                                <td className="table-button">X</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               )}
-              <div className="col-12" style={{ padding: '0px 15px' }}>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  className="btn-gerar-campos"
-                >
-                  Gerar
-                </Button>
-              </div>
             </form>
-
+            <div className="col-12" style={{ padding: '0px 15px' }}>
+              <Button
+                type="submit"
+                variant="primary"
+                className="btn-gerar-campos"
+                form="primaryForm"
+              >
+                Gerar
+              </Button>
+            </div>
           </div>
         </div>
       </Container>

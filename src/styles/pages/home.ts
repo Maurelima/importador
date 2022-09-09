@@ -124,6 +124,38 @@ export const Container = styled.div`
                     border-color: #D4F1F4;
                 }
             }
+            .table-style {
+                margin-top: 20px;
+                border-radius: 10px;
+                thead {
+
+                    tr{
+                        th {
+                            background #189AB4;
+                            color: #D4F1F4;
+
+                            &:first-child {
+                                border-radius: 5px 0px 0px 0px;
+                            }
+                            &:last-child {
+                                border-radius: 0px 5px 0px 0px;
+                            }
+                        }
+                    }
+                    
+                }
+                tbody {
+                    background: #D4F1F4;
+
+                    tr {
+                        .table-button {
+                            text-align: center;
+                            color: red;
+                            cursor: pointer;
+                        }
+                    }
+                }
+            }
         }
         .vincula-label {
             color: #D4F1F4;

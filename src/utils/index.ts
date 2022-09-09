@@ -193,7 +193,7 @@ const ncm: ColumnsProps[] = [
         id: 27,
         des_campo: 'NUM_CEST',
         visible: false,
-        default: 1,
+        default: 999,
         type: 'string',
     },
 ]
