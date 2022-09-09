@@ -6,14 +6,24 @@ import { ColumnsProps, ncm } from '../utils/index'
 
 import FileSaver from 'file-saver';
 
+interface WhereProps {
+  campo: string;
+  valuePosition: string;
+}
+
 const Home: NextPage = () => {
   const [selectedTable, setSelectedTable] = useState<ColumnsProps[]>();
   const [loading, setLoading] = useState<boolean>(false);
   const [showCabecalho, setShowCabecalho] = useState<boolean>(true);
   const [toggleSelectAll, setToggleSelectAll] = useState<boolean>(false);
+  const [toggleInsertOrUpdate, setToggleInsertOrUpdate] = useState<boolean>(false);
   const [collapse, setCollapse] = useState<string>('1');
+  const [selectedCampoWhere, SetSelectedCampoWhere] = useState<string>('');
+  const [selectedColunaWhere, setSelectedColunaWhere] = useState<string>('');
+  const [where, setWhere] = useState<WhereProps[]>([])
 
   function handleSetSelectedTable(table: string) {
+    console.log(table);
     setLoading(true);
     switch (table) {
       case 'NCM':
@@ -71,7 +81,7 @@ const Home: NextPage = () => {
   }
 
 
-  const [fileContent, setFileContent] = useState<any>();
+  const [dadosDoArquivo, setDadosDoArquivo] = useState<any>();
   const [csvQtdColumns, setCsvQtdColumns] = useState<number>();
   const fileRef = useRef(null);
 
@@ -89,7 +99,7 @@ const Home: NextPage = () => {
         return item.split(';')
       });
       setCsvQtdColumns(formatedArray[0].length);
-      setFileContent(formatedArray);
+      setDadosDoArquivo(formatedArray);
     };
   };
 
@@ -99,24 +109,36 @@ const Home: NextPage = () => {
     // console.log(data)
     // console.log({ keys: Object.keys(data).join() });
     // console.log({ values: Object.values(data).join() });
-    let valuesIndex: any = Object.values(data);
-    valuesIndex = valuesIndex.map((value: any) => {
+    /**
+     * indiceCampoColuna informa qual campo receberá o valor de cada coluna do arquivo
+     * além de qual tipo de dado e dado padrão cada campo receberá.
+     */
+    let indiceCampoColuna: any = Object.values(data);
+    indiceCampoColuna = indiceCampoColuna.map((value: any) => {
       return JSON.parse(value)
     })
     const script = [];
-    console.log({ valuesIndex })
+    console.log({ indiceCampoColuna })
     // roda todas as linhas
-    for (let i = 0; i < fileContent.length; i++) {
+    for (let i = 0; i < dadosDoArquivo.length; i++) {
       const values = [];
       // roda todas as 5 opções da linha
-      for (let l = 0; l < valuesIndex.length; l++) {
-          if (fileContent[i][valuesIndex[l].index]) {
-            values.push(fileContent[i][valuesIndex[l].index])
+      for (let l = 0; l < indiceCampoColuna.length; l++) {
+        if (dadosDoArquivo[i][indiceCampoColuna[l].index]) {
+          if (indiceCampoColuna[l].type === 'string') {
+            values.push(`'${dadosDoArquivo[i][indiceCampoColuna[l].index]}'`)
+          } else {
+            values.push(dadosDoArquivo[i][indiceCampoColuna[l].index])
           }
-          
-          if (fileContent[i][valuesIndex[l].index] === '') {
-            values.push(String(valuesIndex[l].default))
+        }
+
+        if (dadosDoArquivo[i][indiceCampoColuna[l].index] === '') {
+          if (indiceCampoColuna[l].type === 'string') {
+            values.push(`'${indiceCampoColuna[l].default}'`)
+          } else {
+            values.push(String(indiceCampoColuna[l].default))
           }
+        }
       }
       script.push(`insert into ncm (${Object.keys(data).join()}) values (${values});\r\n`)
       // console.log(`insert into ncm (${Object.keys(data).join()}) values (${values});`)
@@ -124,16 +146,31 @@ const Home: NextPage = () => {
     // const blob = new Blob(script,
     // { type: "text/plain;charset=utf-8" });
     // window.saveAs(blob, "static.txt");
-    const blob = new Blob(script, {type: "text/plain;charset=utf-8"});
+    const blob = new Blob(script, { type: "text/plain;charset=utf-8" });
     FileSaver.saveAs(blob, "teste.sql");
 
   }
 
   useEffect(() => {
-    if (fileContent)
-      console.log({ fileContent: fileContent })
-  }, [fileContent])
+    if (dadosDoArquivo)
+      console.log({ dadosDoArquivo: dadosDoArquivo })
+  }, [dadosDoArquivo])
 
+  const handleNewWhereClause = useCallback((e: any) => {
+    if (selectedCampoWhere === '' || selectedColunaWhere === '') {
+      alert('Selecione um valor');
+      return;
+    }
+    setWhere([...where, {
+      campo: selectedCampoWhere,
+      valuePosition: selectedColunaWhere,
+    }])
+  }, [selectedCampoWhere, selectedColunaWhere, where])
+
+  useEffect(() => {
+    if (where)
+      console.log({ where: where })
+  }, [where])
 
   return (
     <>
@@ -141,12 +178,15 @@ const Home: NextPage = () => {
         <h1>Importador</h1>
       </Header>
       <Container className="container">
+        {/* 
+          Selecionar arquivo e tabela
+        */}
         <div className="row">
           <div className="mt-4 mb-3">
             <label htmlFor="formFile" className="form-label file-button">Importar arquivo CSV</label>
             <input className="form-control" type="file" id="formFile" ref={fileRef} onChange={readFile} />
           </div>
-          <div className="col-4">
+          <div className="col-md-4 col-sm-12">
             <select className="form-select" aria-label="Default select example" onChange={(e) => handleSetSelectedTable(e.target.value)} defaultValue="selecione">
               <option value="SELECIONE">Selecione um modelo de tabela</option>
               <option value="NCM">NCM</option>
@@ -155,6 +195,10 @@ const Home: NextPage = () => {
             </select>
           </div>
         </div>
+
+        {/* 
+          Opções e configurações
+        */}
         <div className="row">
           <div className="col-3 mt-3">
             <div className="form-check form-switch" title='Se marcado remove a primeira linha do arquivo CSV'>
@@ -175,10 +219,24 @@ const Home: NextPage = () => {
               <label className="form-check-label" htmlFor="flexSwitchToggleAll">Selecionar Todos</label>
             </div>
           </div>
+          <div className="col-3 mt-3">
+            <div className="form-check form-switch" title='Se marcado gera um script de update'>
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="flexSwitchScriptToUpdate"
+                disabled={collapse === '1'}
+                onChange={() => setToggleInsertOrUpdate(!toggleInsertOrUpdate)}
+                checked={toggleInsertOrUpdate}
+              />
+              <label className="form-check-label" htmlFor="flexSwitchScriptToUpdate">Update</label>
+            </div>
+          </div>
         </div>
-        {/* <div className="spinner-border text-info" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div> */}
+
+        {/* 
+          Seleção de campos que entrarão no script
+        */}
         {selectedTable && (
           <div className="row mt-5">
             <div className="col-12 checkbox-list">
@@ -214,7 +272,12 @@ const Home: NextPage = () => {
                 </Accordion.Collapse>
               </Accordion>
             </div>
-          </div>)}
+          </div>
+        )}
+
+        {/* 
+          Montagem do script
+        */}
         <div className="row mt-3 mb-5">
           <div className="col-12 inputs-list">
             <div className="col-12" style={{ padding: '0px 5px' }}>
@@ -233,8 +296,8 @@ const Home: NextPage = () => {
                 </div>
               </div>
               <div className="col-12 mb-2" style={{ padding: '0px 15px' }}>
-                {/* <Badge bg="secondary">{fileContent[0][0]}</Badge> */}
-                {showCabecalho && fileContent && (fileContent[0].map((item: any, index: any) => {
+                {/* <Badge bg="secondary">{dadosDoArquivo[0][0]}</Badge> */}
+                {showCabecalho && dadosDoArquivo && (dadosDoArquivo[0].map((item: any, index: any) => {
                   return <Badge bg="secondary" className="badg" key={index}>{`${item} - index [${index}]`}</Badge>
                 }))}
               </div>
@@ -243,12 +306,20 @@ const Home: NextPage = () => {
               e.preventDefault();
               handleGerarSql(e);
             }}>
+              {/* 
+                Vinculo de campos da tabela com colunas do arquivo CSV
+              */}
               <div className="row list-container">
+                {toggleInsertOrUpdate && (
+                  <div className="col-12 mt-4" style={{ padding: '0px 5px' }}>
+                    <h5>Update</h5>
+                  </div>
+                )}
                 {selectedTable
                   && selectedTable.filter((item) => item.visible === true)
                     .map((item) => {
                       return (
-                        <div className="col-4" key={item.id}>
+                        <div className="col-md-4 col-sm-12" key={item.id}>
                           <Card>
                             <Card.Body>
                               <Card.Subtitle className="mb-2 text-muted">
@@ -259,11 +330,15 @@ const Home: NextPage = () => {
                                   name={item.des_campo}
                                   className="form-select"
                                   aria-label="Default select example"
-                                  onChange={(e) => handleSetSelectedTable(e.target.value)}
                                   defaultValue="selecione"
                                 >
-                                  {fileContent && fileContent[0].map((_item: any, index: any) => {
-                                    return <option key={index} value={`{"index": ${index}, "default": ${item.default}}`}>{`Index [${index}]`}</option>
+                                  {dadosDoArquivo && dadosDoArquivo[0].map((_item: any, index: any) => {
+                                    return (
+                                      <option
+                                        key={index}
+                                        value={`{"index": ${index}, "default": ${item.default}, "type": "${item.type}" }`}>
+                                        {`Index [${index}]`}
+                                      </option>)
                                   })}
                                 </select>
                               </Card.Text>
@@ -272,8 +347,90 @@ const Home: NextPage = () => {
                         </div>
                       )
                     })}
-
               </div>
+              {/* 
+                Seleção de campos para Where em caso de update
+              */}
+              {toggleInsertOrUpdate && (
+                <div className="col-12 mt-4" style={{ padding: '0px 5px' }}>
+                  <h5>Where</h5>
+                  <div className="row list-where">
+                    <div className="col-md-4 col-sm-12">
+                      <Card>
+                        <Card.Body>
+                          <Card.Subtitle className="mb-2 text-muted">
+                            Selecione um campo para where
+                          </Card.Subtitle>
+                          <Card.Text>
+                            <select
+                              name="where-campos"
+                              className="form-select"
+                              aria-label="Default select example"
+                              onChange={(e) => {
+                                console.log(e.target.value)
+                                SetSelectedCampoWhere(e.target.value);
+                              }}
+                              defaultValue="1"
+                            >
+                              {selectedTable && selectedTable.map((table) => {
+                                return (
+                                  <option
+                                    key={table.id}
+                                    value={table.id}>
+                                    {table.des_campo}
+                                  </option>)
+                              })}
+                            </select>
+                          </Card.Text>
+                        </Card.Body>
+                      </Card>
+                    </div>
+                    <div className="col-md-4 col-sm-12">
+                      <Card>
+                        <Card.Body>
+                          <Card.Subtitle className="mb-2 text-muted">
+                            Selecione a coluna do arquivo CSV
+                          </Card.Subtitle>
+                          <Card.Text>
+                            <select
+                              name="where-campos"
+                              className="form-select"
+                              aria-label="Default select example"
+                              onChange={(e) => setSelectedColunaWhere(e.target.value)}
+                              defaultValue="0"
+                            >
+                              {dadosDoArquivo && dadosDoArquivo[0].map((_item: any, index: any) => {
+                                return (
+                                  <option
+                                    key={index}
+                                    value={index}>
+                                    {`Index [${index}]`}
+                                  </option>)
+                              })}
+                            </select>
+                            <Button
+                              type="button"
+                              variant="primary"
+                              className="btn-gerar-campos"
+                              onClick={(e) => handleNewWhereClause(e)}
+                              style={{
+                                position: 'absolute',
+                                right: '15px',
+                                top: '20px',
+                                width: '50px',
+                                borderRadius: '0px 6px 6px 0px',
+                                borderColor: '#189AB4',
+                              }}
+                            >
+                              +
+                            </Button>
+                          </Card.Text>
+                        </Card.Body>
+                      </Card>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="col-12" style={{ padding: '0px 15px' }}>
                 <Button
                   type="submit"

@@ -109,6 +109,22 @@ export const Container = styled.div`
                 }
             }
         }
+        .list-where {
+            columns: 3;
+            .card {
+                background: transparent;
+                border: none;
+
+                .card-subtitle {
+                    color: #189AB4 !important;
+                }
+                select {
+                    background: #D4F1F4;
+                    color: #05445E;
+                    border-color: #D4F1F4;
+                }
+            }
+        }
         .vincula-label {
             color: #D4F1F4;
         }
