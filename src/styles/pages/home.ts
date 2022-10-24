@@ -88,8 +88,12 @@ export const Container = styled.div`
             height: 30px;
             line-height: 20px;
             text-align: center;
+            margin-top: 10px;
+            &:first-child {
+                margin-right: 10px;
+            }
             & + .badge {
-                margin-left: 10px;
+                margin-right: 10px;
             }
         }
 
@@ -167,5 +171,20 @@ export const Container = styled.div`
             background: #189AB4;
         }
     }
+    .loadingOpacity {
+        position: fixed;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
+        left: 0px;
+        display: flex;
+        background-color: rgba(0, 0, 0, 0.2);
+        z-index: 9999;
 
+        .spinner-border {
+            margin: auto;
+            height: 60px;
+            width: 60px;
+        }
+    }
 `

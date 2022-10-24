@@ -1,6 +1,6 @@
 import type { NextPage } from 'next'
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react'
-import { Accordion, Badge, Button, Card } from 'react-bootstrap';
+import { Accordion, Badge, Button, Card, Spinner } from 'react-bootstrap';
 import { Container, Header } from '../styles/pages/home'
 import { ColumnsProps, ncm } from '../utils/index'
 
@@ -30,7 +30,6 @@ const Home: NextPage = () => {
   const [where, setWhere] = useState<WhereProps[]>([])
 
   function handleSetSelectedTable(table: string) {
-    console.log(table);
     setLoading(true);
     switch (table) {
       case 'NCM':
@@ -82,11 +81,6 @@ const Home: NextPage = () => {
     setSelectedTable(allDeselectedItems);
   }
 
-  function handleGenInputs() {
-    setCollapse('1')
-    console.log('fechaaa')
-  }
-
 
   const [dadosDoArquivo, setDadosDoArquivo] = useState<any>();
   const [csvQtdColumns, setCsvQtdColumns] = useState<number>();
@@ -110,7 +104,7 @@ const Home: NextPage = () => {
     };
   };
 
-  function handleGerarSql(e: any) {
+  const handleGerarSql = useCallback((e: any) => {
     const formData = new FormData(e.target);
     const data = Object.fromEntries(formData.entries());
     /**
@@ -122,21 +116,69 @@ const Home: NextPage = () => {
       return JSON.parse(value)
     })
     const script = [];
-    console.log({ data })
-    console.log({ dadosDoArquivo })
-    console.log({ indiceCampoColuna })
-    console.log({ where })
+    // console.log({ data })
+    // console.log({ dadosDoArquivo })
+    // console.log({ indiceCampoColuna })
+    // console.log({ where })
     // return
+    
+    // UPDATE
+    if (toggleInsertOrUpdate) {
+      // roda todas as linhas
+      for (let i = 0; i < dadosDoArquivo.length; i++) {
+        const values = [];
+    
+        // Formata os valores
+        for (let l = 0; l < indiceCampoColuna.length; l++) {
+          if (dadosDoArquivo[i][indiceCampoColuna[l].index]) {
+            if (indiceCampoColuna[l].type === 'string') {
+              values.push(`'${dadosDoArquivo[i][indiceCampoColuna[l].index]}'`)
+            } else {
+              values.push(dadosDoArquivo[i][indiceCampoColuna[l].index])
+            }
+          }
+    
+          if (dadosDoArquivo[i][indiceCampoColuna[l].index] === '') {
+            if (indiceCampoColuna[l].type === 'string') {
+              values.push(`'${indiceCampoColuna[l].default}'`)
+            } else {
+              values.push(String(indiceCampoColuna[l].default))
+            }
+          }
+        }
+        // Formata o where
+        const whereClause = [];
+        for (let k = 0; k < where.length; k++) {
+          if (dadosDoArquivo[i][where[k].whereColumn.id]) {
+            whereClause.push(` ${where[k].whereCampo.descricao} = ${dadosDoArquivo[i][where[k].whereColumn.id]}`)
+          }
+          if (dadosDoArquivo[i][where[k].whereColumn.id] === '') {
+            const defaultValue = indiceCampoColuna.find((indice: any) => indice.index === where[k].whereColumn.id);
+            if (defaultValue) {
+              whereClause.push(` ${where[k].whereCampo.descricao} = ${defaultValue.default}`)
+            }
+          }
+        }
+    
+        const updateValues = [];
+        for (let j = 0; j < values.length; j++) {
+          updateValues.push(` ${Object.keys(data)[j]} = ${values[j]}`)
+        }
+        script.push(`UPDATE ncm\r\n SET${updateValues.join(',\r\n')}\r\nWHERE ${whereClause.join(' and')};\r\n`)
+        // script.push(`UPDATE ncm\r\nSET ${updateValues.join(', \r\nAND\r\n')}\r\nWHERE ${whereClause.join(' and')};\r\n`) Update with AND
+      }
+      const blob = new Blob(script, { type: "text/plain;charset=utf-8" });
+      FileSaver.saveAs(blob, "teste.sql");
+      // console.log(script)
+      // setLoading(false)
+      // setTimeout(() => {
+      //   console.log('teste');
+      //   setLoading(false)
+      // }, 1500)
+      return;
+    }
 
-    // Verifica se é update
-    // if (toggleInsertOrUpdate) {
-    //   let whereClause = ' where';
-    //   for (let i = 0; i < where.length; i++) {
-    //     // whereClause += ` ${where[i].whereCampo.descricao} = '${}'`;
-    //   }
-    // }    
-
-    // roda todas as linhas
+    // INSERT
     for (let i = 0; i < dadosDoArquivo.length; i++) {
       const values = [];
       // roda todas as opções da linha
@@ -157,7 +199,58 @@ const Home: NextPage = () => {
           }
         }
       }
-      if (toggleInsertOrUpdate) {
+      script.push(`insert into ncm (${Object.keys(data).join()}) values (${values});\r\n`)
+    }
+    const blob = new Blob(script, { type: "text/plain;charset=utf-8" });
+    FileSaver.saveAs(blob, "teste.sql");
+    // setLoading(false)
+    
+  }, [dadosDoArquivo, toggleInsertOrUpdate, where]);
+
+  function Teste(e: any) {
+    setLoading(true);
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    /**
+     * indiceCampoColuna informa qual campo receberá o valor de cada coluna do arquivo
+     * além de qual tipo de dado e dado padrão cada campo receberá.
+     */
+    let indiceCampoColuna: any = Object.values(data);
+    indiceCampoColuna = indiceCampoColuna.map((value: any) => {
+      return JSON.parse(value)
+    })
+    const script = [];
+    console.log({ data })
+    console.log({ dadosDoArquivo })
+    console.log({ indiceCampoColuna })
+    console.log({ where })
+    // return
+
+    // UPDATE
+    if (toggleInsertOrUpdate) {
+      // roda todas as linhas
+      for (let i = 0; i < dadosDoArquivo.length; i++) {
+        const values = [];
+
+        // Formata os valores
+        for (let l = 0; l < indiceCampoColuna.length; l++) {
+          if (dadosDoArquivo[i][indiceCampoColuna[l].index]) {
+            if (indiceCampoColuna[l].type === 'string') {
+              values.push(`'${dadosDoArquivo[i][indiceCampoColuna[l].index]}'`)
+            } else {
+              values.push(dadosDoArquivo[i][indiceCampoColuna[l].index])
+            }
+          }
+
+          if (dadosDoArquivo[i][indiceCampoColuna[l].index] === '') {
+            if (indiceCampoColuna[l].type === 'string') {
+              values.push(`'${indiceCampoColuna[l].default}'`)
+            } else {
+              values.push(String(indiceCampoColuna[l].default))
+            }
+          }
+        }
+        // Formata o where
         const whereClause = [];
         for (let k = 0; k < where.length; k++) {
           if (dadosDoArquivo[i][where[k].whereColumn.id]) {
@@ -170,19 +263,46 @@ const Home: NextPage = () => {
             }
           }
         }
-        // console.log(`${whereClause.join(' and')}`)
-        script.push(`insert into ncm (${Object.keys(data).join()}) values (${values}) WHERE ${whereClause.join(' and')};\r\n`)
-      } else {
-        script.push(`insert into ncm (${Object.keys(data).join()}) values (${values});\r\n`)
+
+        const updateValues = [];
+        for (let j = 0; j < values.length; j++) {
+          updateValues.push(` ${Object.keys(data)[j]} = ${values[j]}`)
+        }
+        script.push(`UPDATE ncm\r\n SET${updateValues.join(',\r\n')}\r\nWHERE ${whereClause.join(' and')};\r\n`)
+        // script.push(`UPDATE ncm\r\nSET ${updateValues.join(', \r\nAND\r\n')}\r\nWHERE ${whereClause.join(' and')};\r\n`) Update with AND
       }
-      // console.log(`insert into ncm (${Object.keys(data).join()}) values (${values});`)
+      setLoading(false);
+      return;
     }
-    // const blob = new Blob(script,
-    // { type: "text/plain;charset=utf-8" });
-    // window.saveAs(blob, "static.txt");
+
+
+    // INSERT
+    for (let i = 0; i < dadosDoArquivo.length; i++) {
+      const values = [];
+      // roda todas as opções da linha
+      for (let l = 0; l < indiceCampoColuna.length; l++) {
+        if (dadosDoArquivo[i][indiceCampoColuna[l].index]) {
+          if (indiceCampoColuna[l].type === 'string') {
+            values.push(`'${dadosDoArquivo[i][indiceCampoColuna[l].index]}'`)
+          } else {
+            values.push(dadosDoArquivo[i][indiceCampoColuna[l].index])
+          }
+        }
+
+        if (dadosDoArquivo[i][indiceCampoColuna[l].index] === '') {
+          if (indiceCampoColuna[l].type === 'string') {
+            values.push(`'${indiceCampoColuna[l].default}'`)
+          } else {
+            values.push(String(indiceCampoColuna[l].default))
+          }
+        }
+      }
+      script.push(`insert into ncm (${Object.keys(data).join()}) values (${values});\r\n`)
+    }
+
     const blob = new Blob(script, { type: "text/plain;charset=utf-8" });
     FileSaver.saveAs(blob, "teste.sql");
-
+    setLoading(false);
   }
 
   useEffect(() => {
@@ -211,10 +331,10 @@ const Home: NextPage = () => {
     }])
   }, [where])
 
-  useEffect(() => {
-    if (where)
-      console.log({ where: where })
-  }, [where])
+  // useEffect(() => {
+  //   if (loading)
+  //     console.log({ loading })
+  // }, [loading])
 
   return (
     <>
@@ -222,6 +342,14 @@ const Home: NextPage = () => {
         <h1>Importador</h1>
       </Header>
       <Container className="container">
+        {loading === true && (
+          <div
+            className="loadingOpacity"
+            aria-label="closeMenu"
+          >
+            <Spinner animation="border" variant="info" />
+          </div>
+        )}
         {/* 
           Selecionar arquivo e tabela
         */}
@@ -509,6 +637,7 @@ const Home: NextPage = () => {
                 variant="primary"
                 className="btn-gerar-campos"
                 form="primaryForm"
+                // onClick={() => setLoading(true)}
               >
                 Gerar
               </Button>
