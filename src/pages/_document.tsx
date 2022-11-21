@@ -42,7 +42,8 @@ export default class MyDocument extends Document {
         return (
             <Html lang="pt">
                 <Head>
-                    <meta charSet="utf-8" />
+                <meta charSet="utf-8"/>
+                <meta name="next-head-count" content="2"/>
                     <link rel="preconnect" href="https://fonts.gstatic.com" />
                     <link
                         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"

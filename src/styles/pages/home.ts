@@ -106,10 +106,32 @@ export const Container = styled.div`
                 .card-subtitle {
                     color: #189AB4 !important;
                 }
-                select {
+                .field-options {
+                    display: flex;
+                    select {
+                        background: #D4F1F4;
+                        color: #05445E;
+                        border-color: #D4F1F4;
+                        border-radius: 0.375rem 0 0 0.375rem;
+                    }
+                    button {
+                        width: 50px;
+                        background: #189AB4;
+                        border: 1px solid #D4F1F4;
+                        border-radius: 0 0.375rem 0.375rem 0;
+
+                        transition: 0.2s;
+                        &:hover {
+                            background: #087aa8;
+                        }
+                    }
+                }
+                .collapse-layout {
+                    margin: auto;
+                    margin-top: -10px;
+                    width: 100%;
+                    border-radius: 0.375rem;
                     background: #D4F1F4;
-                    color: #05445E;
-                    border-color: #D4F1F4;
                 }
             }
         }
@@ -122,10 +144,12 @@ export const Container = styled.div`
                 .card-subtitle {
                     color: #189AB4 !important;
                 }
-                select {
-                    background: #D4F1F4;
-                    color: #05445E;
-                    border-color: #D4F1F4;
+                .field-options {
+                    select {
+                        background: #D4F1F4;
+                        color: #05445E;
+                        border-color: #D4F1F4;
+                    }
                 }
             }
             .table-style {
@@ -135,7 +159,7 @@ export const Container = styled.div`
 
                     tr{
                         th {
-                            background #189AB4;
+                            background: #189AB4;
                             color: #D4F1F4;
 
                             &:first-child {
@@ -153,9 +177,10 @@ export const Container = styled.div`
 
                     tr {
                         .table-button {
+                            font-size: 20px;
                             text-align: center;
                             color: red;
-                            cursor: pointer;
+                            cursor: #540000;
                         }
                     }
                 }
